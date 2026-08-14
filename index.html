@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#f7f5f2">
+<title>腸活記録（2週間）</title>
+<style>
+:root{
+  color-scheme: light dark;
+  --bg:#f7f5f2; --surface:#fff; --surface2:#faf9f7; --border:#e0dbd4;
+  --text:#2d2a26; --muted:#6b6460; --accent:#5a6e7e; --accent-bg:#eef1f4;
+  --on:#2d2a26; --on-text:#fff; --danger:#c0504d;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#1c1a18; --surface:#26231f; --surface2:#2d2a26; --border:#3d3934;
+    --text:#ece8e3; --muted:#9c948c; --accent:#8fa8bb; --accent-bg:#2b3339;
+    --on:#ece8e3; --on-text:#1c1a18;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{
+  font-family:'Hiragino Kaku Gothic Pro','Noto Sans JP','Yu Gothic',system-ui,sans-serif;
+  background:var(--bg); color:var(--text); font-size:16px; line-height:1.6;
+  max-width:600px; margin:0 auto; padding:0 0 calc(40px + env(safe-area-inset-bottom));
+}
+header{
+  position:sticky; top:0; z-index:20; background:var(--bg);
+  padding:14px 16px 10px; border-bottom:1px solid var(--border);
+}
+h1{font-size:16px; font-weight:700; letter-spacing:.03em}
+h1 small{font-weight:400; font-size:12px; color:var(--muted); margin-left:8px}
+main{padding:0 16px}
+section{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:14px; margin:14px 0;
+}
+h2{font-size:13px; font-weight:700; color:var(--muted); letter-spacing:.08em; margin-bottom:10px}
+
+.row{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+.row > label{font-size:13px; color:var(--muted); min-width:56px; flex-shrink:0}
+.sub{font-size:11.5px;color:var(--muted);margin:-6px 0 12px 66px}
+
+.seg{display:flex; gap:6px; flex:1; min-width:0}
+.seg button{
+  flex:1; min-width:0; padding:11px 4px; font-size:14px; font-family:inherit;
+  background:var(--surface2); color:var(--text);
+  border:1px solid var(--border); border-radius:8px; cursor:pointer;
+  transition:background .12s,border-color .12s;
+}
+.seg button[aria-pressed="true"]{background:var(--on); color:var(--on-text); border-color:var(--on); font-weight:700}
+
+input[type=text],textarea,select{
+  width:100%; padding:11px 12px; font-size:16px; font-family:inherit;
+  background:var(--surface2); color:var(--text);
+  border:1px solid var(--border); border-radius:8px;
+}
+textarea{resize:vertical; min-height:52px; line-height:1.5}
+select{appearance:none; padding-right:30px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
+  background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;
+  background-size:5px 5px,5px 5px; background-repeat:no-repeat;
+}
+
+.chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:8px}
+.chips button{
+  padding:7px 11px; font-size:13px; font-family:inherit;
+  background:var(--accent-bg); color:var(--accent);
+  border:1px solid transparent; border-radius:14px; cursor:pointer;
+}
+.chips button:active{background:var(--accent); color:var(--on-text)}
+.chips .hint{font-size:12px; color:var(--muted); padding:6px 0}
+
+.btn{
+  padding:12px 16px; font-size:15px; font-weight:700; font-family:inherit;
+  border:1px solid var(--border); border-radius:9px; cursor:pointer;
+  background:var(--surface2); color:var(--text);
+}
+.btn.primary{background:var(--on); color:var(--on-text); border-color:var(--on); flex:1; padding:15px; font-size:16px}
+.btn.ghost{background:transparent; color:var(--muted); font-weight:400; font-size:13px; padding:8px 12px}
+.btnrow{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap}
+
+.day h3{font-size:13px; color:var(--muted); font-weight:700}
+.entry{
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:11px 12px; margin-bottom:7px; display:flex; gap:11px; align-items:flex-start;
+}
+.entry.stool{background:var(--accent-bg); border-color:transparent}
+.entry .t{font-size:13px; font-weight:700; color:var(--accent); min-width:42px; padding-top:1px}
+.entry .b{flex:1; min-width:0}
+.entry .f{font-size:14.5px; word-break:break-word}
+.entry .m{font-size:11.5px; color:var(--muted); margin-top:3px}
+.entry .del{background:none;border:none;color:var(--muted);font-size:17px;cursor:pointer;padding:0 2px;line-height:1;font-family:inherit}
+.memo-badge{background:var(--surface2); border:1px dashed var(--border); border-radius:8px; padding:8px 11px; font-size:12.5px; color:var(--muted); margin-bottom:7px}
+.empty{color:var(--muted); font-size:13.5px; text-align:center; padding:24px 0}
+
+.note{background:var(--accent-bg); border-left:3px solid var(--accent); border-radius:0 8px 8px 0;
+  padding:10px 13px; font-size:12.5px; margin:12px 0}
+.note b{color:var(--accent)}
+.opt-tag{display:inline-block; font-size:10.5px; font-weight:700; letter-spacing:.06em;
+  background:var(--accent-bg); color:var(--accent); padding:2px 7px; border-radius:9px; margin-left:6px}
+footer{padding:20px 16px; font-size:11.5px; color:var(--muted); text-align:center; line-height:1.8}
+#toast{
+  position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(80px);
+  background:var(--on); color:var(--on-text); padding:11px 20px; border-radius:22px;
+  font-size:14px; font-weight:700; opacity:0; transition:transform .22s,opacity .22s; z-index:50; pointer-events:none;
+  max-width:88%; text-align:center;
+}
+#toast.show{transform:translateX(-50%) translateY(0); opacity:1}
+details summary{cursor:pointer; font-size:13px; color:var(--muted); padding:4px 0}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>腸活記録 <small id="dayCount">2週間の偵察</small></h1>
+</header>
+
+<main>
+
+<!-- ═══════ 食事 ═══════ -->
+<section>
+  <h2>🍽 食事を記録</h2>
+
+  <div class="row">
+    <label for="hour">時間</label>
+    <select id="hour" style="flex:1"></select>
+  </div>
+
+  <div class="row" style="align-items:flex-start">
+    <label for="foods" style="padding-top:11px">食材</label>
+    <div style="flex:1; min-width:0">
+      <input type="text" id="foods" placeholder="例）ごはん, 味噌汁, 納豆　※料理名が無ければ材料を並べる" autocomplete="off" enterkeyhint="done">
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+
+  <div class="row"><label>量</label><div class="seg" data-field="amount">
+    <button type="button" data-v="少なめ">少なめ</button>
+    <button type="button" data-v="満足" aria-pressed="true">満足</button>
+    <button type="button" data-v="多め">多め</button>
+  </div></div>
+
+  <div class="row"><label>油</label><div class="seg" data-field="oil">
+    <button type="button" data-v="少">少</button>
+    <button type="button" data-v="普通" aria-pressed="true">普通</button>
+    <button type="button" data-v="多">多</button>
+  </div></div>
+
+  <div class="row"><label>塩分</label><div class="seg" data-field="salt">
+    <button type="button" data-v="少">少</button>
+    <button type="button" data-v="普通" aria-pressed="true">普通</button>
+    <button type="button" data-v="多">多</button>
+  </div></div>
+
+  <div class="row"><label>糖分</label><div class="seg" data-field="sugar">
+    <button type="button" data-v="少">少</button>
+    <button type="button" data-v="普通" aria-pressed="true">普通</button>
+    <button type="button" data-v="多">多</button>
+  </div></div>
+
+  <div class="row" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+    <label>体調</label><div class="seg" data-field="cond">
+    <button type="button" data-v="1">1</button><button type="button" data-v="2">2</button>
+    <button type="button" data-v="3">3</button><button type="button" data-v="4">4</button>
+    <button type="button" data-v="5">5</button>
+  </div></div>
+  <div class="sub">1＝悪い ／ 5＝良い　※押し直しで解除。朝・昼・夜のご飯のついでに</div>
+
+  <div class="btnrow" style="margin-top:4px">
+    <button class="btn primary" id="save">記録する</button>
+  </div>
+  <div class="btnrow">
+    <button class="btn ghost" id="copyLast">↩ 前回をコピー</button>
+    <button class="btn ghost" id="copyMorning">↩ 前回の朝食</button>
+  </div>
+</section>
+
+<!-- ═══════ 便 ═══════ -->
+<section>
+  <h2>🚽 便を記録<span class="opt-tag">1日に何回でも</span></h2>
+
+  <div class="row">
+    <label for="sHour">時間</label>
+    <select id="sHour" style="flex:1"></select>
+  </div>
+
+  <div class="row"><label>量</label><div class="seg" data-field="samount">
+    <button type="button" data-v="少">少</button>
+    <button type="button" data-v="普通" aria-pressed="true">普通</button>
+    <button type="button" data-v="多">多</button>
+  </div></div>
+
+  <div class="row" style="align-items:flex-start">
+    <label for="bristol" style="padding-top:11px">形状</label>
+    <select id="bristol" style="flex:1">
+      <option value="">選ばない</option>
+      <option value="1">1 コロコロ（硬い塊）</option>
+      <option value="2">2 ゴツゴツ（塊が繋がる）</option>
+      <option value="3">3 ひび割れたソーセージ状</option>
+      <option value="4" selected>4 なめらかなソーセージ状 ★理想</option>
+      <option value="5">5 やわらかい小塊</option>
+      <option value="6">6 泥状・境界がほぐれる</option>
+      <option value="7">7 水様・固形物なし</option>
+    </select>
+  </div>
+
+  <div class="btnrow"><button class="btn primary" id="saveStool">便を記録する</button></div>
+</section>
+
+<!-- ═══════ 1日メモ ═══════ -->
+<section>
+  <h2>📝 今日のメモ<span class="opt-tag">1日1回・任意</span></h2>
+  <textarea id="dnote" placeholder="睡眠・ストレス・運動・薬・外食など、気づいたことだけ"></textarea>
+  <div class="btnrow"><button class="btn primary" id="saveNote">メモを保存</button></div>
+</section>
+
+<div class="note">
+  <b>⚠️ 最初の2週間で測っているのは腸ではなく「記録が続くか」。</b>
+  抜けた日があっても構わない。抜けたこと自体がデータになる。
+  <b>後から埋めてよい</b>（下の日付を選べば過去日にも記録できる）。
+</div>
+
+<!-- ═══════ 記録 ═══════ -->
+<section>
+  <h2>📋 記録<span id="stat" style="font-weight:400;letter-spacing:0;float:right"></span></h2>
+  <div class="row" style="margin-bottom:8px">
+    <label for="dateSel">日付</label>
+    <select id="dateSel" style="flex:1"></select>
+  </div>
+  <div id="log"></div>
+  <div class="btnrow" style="margin-top:14px">
+    <button class="btn" id="expCsv">📤 CSVを書き出す</button>
+    <button class="btn" id="copyCsv">📋 CSVをコピー</button>
+  </div>
+  <div style="font-size:11.5px;color:var(--muted);margin-top:8px;line-height:1.7">
+    <b>書き出す</b>＝iPhoneなら共有シートが出る（ファイルに保存／AirDrop／メール）。<br>
+    <b>コピー</b>＝そのままAIのチャットに貼れる。ファイルにしなくてよい。
+  </div>
+  <details style="margin-top:12px">
+    <summary>データの管理</summary>
+    <div class="btnrow">
+      <button class="btn ghost" id="expJson">JSONでバックアップ</button>
+      <button class="btn ghost" id="expChips">食材レパートリー一覧</button>
+      <button class="btn ghost" id="wipe" style="color:var(--danger)">全消去</button>
+    </div>
+  </details>
+</section>
+
+<footer>
+  データはこの端末のブラウザ内（localStorage）にのみ保存されます。<br>
+  どこにも送信されません。ブラウザのデータを消すと失われるので、<br>
+  <b>週に一度はCSVで書き出してください。</b>
+</footer>
+
+</main>
+<div id="toast"></div>
+
+<script>
+(function(){
+'use strict';
+const KEY='chokatsu-log-v2', OLD='chokatsu-log-v1';
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>ymd(new Date());
+
+let db={entries:[],stool:[],notes:{}};
+try{
+  const r=localStorage.getItem(KEY);
+  if(r){ db=Object.assign(db,JSON.parse(r)); }
+  else{
+    const o=localStorage.getItem(OLD);          // v1からの引き継ぎ
+    if(o){
+      const v1=JSON.parse(o);
+      db.entries=(v1.entries||[]).map(e=>Object.assign({cond:''},e));
+      Object.entries(v1.daily||{}).forEach(([d,r2])=>{
+        if(r2.bristol&&r2.bristol!=='0') db.stool.push({id:Date.now()+Math.random(),date:d,hour:8,bristol:r2.bristol,amount:'普通'});
+        if(r2.note) db.notes[d]=r2.note;
+      });
+    }
+  }
+}catch(e){}
+if(!db.stool) db.stool=[];
+if(!db.notes) db.notes={};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(db));}catch(e){toast('保存に失敗しました');}};
+
+let toastTimer;
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1800);}
+
+/* ---------- 時間セレクト ---------- */
+[['hour'],['sHour']].forEach(([id])=>{
+  const s=$(id);
+  for(let h=0;h<24;h++){const o=document.createElement('option');o.value=h;o.textContent=pad(h)+':00 ごろ';s.appendChild(o);}
+  s.value=new Date().getHours();
+});
+
+/* ---------- セグメント ---------- */
+const OPTIONAL=['cond'];   // 押し直しで解除できる項目
+document.querySelectorAll('.seg').forEach(seg=>{
+  seg.addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    const on=b.getAttribute('aria-pressed')==='true';
+    seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
+    if(!(on && OPTIONAL.includes(seg.dataset.field))) b.setAttribute('aria-pressed','true');
+  });
+});
+const segGet=f=>{const b=document.querySelector('.seg[data-field="'+f+'"] button[aria-pressed="true"]');return b?b.dataset.v:'';};
+const segSet=(f,v)=>{document.querySelectorAll('.seg[data-field="'+f+'"] button').forEach(b=>
+  b.setAttribute('aria-pressed', String(b.dataset.v===v)));};
+
+/* ---------- 食材チップ ---------- */
+function foodFreq(){
+  const m=new Map();
+  db.entries.forEach(e=>(e.foods||[]).forEach(f=>m.set(f,(m.get(f)||0)+1)));
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0],'ja'));
+}
+function renderChips(){
+  const box=$('chips'); box.innerHTML='';
+  const list=foodFreq().slice(0,28);
+  if(!list.length){
+    box.innerHTML='<div class="hint">入力した食材が、次からここにボタンで出ます（事前登録は不要）</div>'; return;
+  }
+  list.forEach(([name])=>{
+    const b=document.createElement('button'); b.type='button'; b.textContent=name;
+    b.addEventListener('click',()=>{
+      const inp=$('foods');
+      const cur=inp.value.split(/[,、]/).map(s=>s.trim()).filter(Boolean);
+      inp.value=(cur.includes(name)?cur.filter(x=>x!==name):cur.concat(name)).join(', ');
+    });
+    box.appendChild(b);
+  });
+}
+
+/* ---------- 保存：食事 ---------- */
+function resetMeal(){
+  $('foods').value='';
+  segSet('amount','満足'); segSet('oil','普通'); segSet('salt','普通'); segSet('sugar','普通'); segSet('cond','');
+  $('hour').value=new Date().getHours();
+}
+function saveMeal(){
+  const foods=$('foods').value.split(/[,、]/).map(s=>s.trim()).filter(Boolean);
+  if(!foods.length){ toast('食材を入れてください（料理名が無ければ材料を並べる）'); $('foods').focus(); return; }
+  db.entries.push({
+    id:Date.now(), date:$('dateSel').value||today(), hour:Number($('hour').value), foods,
+    amount:segGet('amount'), oil:segGet('oil'), salt:segGet('salt'), sugar:segGet('sugar'), cond:segGet('cond')
+  });
+  save(); resetMeal(); renderAll(); toast('記録しました');
+}
+$('save').addEventListener('click',saveMeal);
+$('foods').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault(); saveMeal();} });
+
+/* ---------- 前回コピー ---------- */
+function lastEntry(pred){
+  for(let i=db.entries.length-1;i>=0;i--){ const e=db.entries[i]; if(e.foods.length&&(!pred||pred(e))) return e; }
+  return null;
+}
+function applyEntry(e){
+  if(!e){ toast('コピーできる記録がありません'); return; }
+  $('foods').value=e.foods.join(', ');
+  segSet('amount',e.amount); segSet('oil',e.oil); segSet('salt',e.salt); segSet('sugar',e.sugar);
+  toast('コピーしました。違うところだけ直してください');
+}
+$('copyLast').addEventListener('click',()=>applyEntry(lastEntry()));
+$('copyMorning').addEventListener('click',()=>applyEntry(lastEntry(e=>e.hour>=4&&e.hour<=10)));
+
+/* ---------- 保存：便 ---------- */
+$('saveStool').addEventListener('click',()=>{
+  db.stool.push({id:Date.now(), date:$('dateSel').value||today(), hour:Number($('sHour').value),
+    amount:segGet('samount'), bristol:$('bristol').value});
+  save();
+  segSet('samount','普通'); $('bristol').value='4'; $('sHour').value=new Date().getHours();
+  renderAll(); toast('便を記録しました');
+});
+
+/* ---------- 保存：メモ ---------- */
+$('saveNote').addEventListener('click',()=>{
+  const d=$('dateSel').value||today(); const v=$('dnote').value.trim();
+  if(v) db.notes[d]=v; else delete db.notes[d];
+  save(); renderAll(); toast(v?'メモを保存しました':'メモを消しました');
+});
+
+/* ---------- 日付 ---------- */
+function renderDates(){
+  const sel=$('dateSel'); const keep=sel.value;
+  const set=new Set(db.entries.map(e=>e.date).concat(db.stool.map(s=>s.date),Object.keys(db.notes)));
+  for(let i=0;i<14;i++){const d=new Date();d.setDate(d.getDate()-i);set.add(ymd(d));}
+  const dates=[...set].sort().reverse();
+  sel.innerHTML='';
+  dates.forEach(d=>{
+    const o=document.createElement('option'); o.value=d;
+    const w=['日','月','火','水','木','金','土'][new Date(d+'T00:00:00').getDay()];
+    const n=db.entries.filter(e=>e.date===d).length, s=db.stool.filter(x=>x.date===d).length;
+    o.textContent=d+'（'+w+'）'+(d===today()?' 今日':'')+(n?'　'+n+'食':'')+(s?'　便'+s:'');
+    sel.appendChild(o);
+  });
+  sel.value=(keep&&dates.includes(keep))?keep:today();
+}
+$('dateSel').addEventListener('change',()=>{ $('dnote').value=db.notes[$('dateSel').value]||''; renderLog(); });
+
+/* ---------- 一覧 ---------- */
+function renderLog(){
+  const d=$('dateSel').value||today();
+  const box=$('log'); box.innerHTML='';
+  if(db.notes[d]){
+    const n=document.createElement('div'); n.className='memo-badge'; n.textContent='📝 '+db.notes[d]; box.appendChild(n);
+  }
+  const items=db.entries.filter(e=>e.date===d).map(e=>({k:'meal',v:e}))
+    .concat(db.stool.filter(s=>s.date===d).map(s=>({k:'stool',v:s})))
+    .sort((a,b)=>a.v.hour-b.v.hour || a.v.id-b.v.id);
+  if(!items.length){
+    const e=document.createElement('div'); e.className='empty'; e.textContent='この日の記録はまだありません';
+    box.appendChild(e); renderStat(); return;
+  }
+  items.forEach(it=>{
+    const e=it.v, isStool=it.k==='stool';
+    const div=document.createElement('div'); div.className='entry'+(isStool?' stool':'');
+    const t=document.createElement('div'); t.className='t'; t.textContent=pad(e.hour)+':00';
+    const b=document.createElement('div'); b.className='b';
+    const f=document.createElement('div'); f.className='f';
+    const m=document.createElement('div'); m.className='m';
+    if(isStool){
+      f.textContent='🚽 便　量'+e.amount;
+      m.textContent=e.bristol?('形状 Bristol '+e.bristol):'形状の記録なし';
+    }else{
+      f.textContent=e.foods.join('、');
+      const p=['量'+e.amount,'油'+e.oil,'塩'+e.salt,'糖'+e.sugar];
+      if(e.cond) p.push('体調'+e.cond+'/5');
+      m.textContent=p.join('　');
+    }
+    b.appendChild(f); b.appendChild(m);
+    const del=document.createElement('button'); del.className='del'; del.textContent='×'; del.title='削除';
+    del.addEventListener('click',()=>{
+      if(!confirm('この記録を削除しますか？'))return;
+      if(isStool) db.stool=db.stool.filter(x=>x.id!==e.id); else db.entries=db.entries.filter(x=>x.id!==e.id);
+      save(); renderAll(); toast('削除しました');
+    });
+    div.appendChild(t); div.appendChild(b); div.appendChild(del);
+    box.appendChild(div);
+  });
+  renderStat();
+}
+function renderStat(){
+  const days=new Set(db.entries.map(e=>e.date)).size;
+  $('stat').textContent=db.entries.length?days+'日 / '+db.entries.length+'食 / 便'+db.stool.length:'';
+  let streak=0; const has=new Set(db.entries.map(e=>e.date));
+  for(let i=0;i<60;i++){const d=new Date();d.setDate(d.getDate()-i);
+    if(has.has(ymd(d))) streak++; else if(i>0) break;}
+  $('dayCount').textContent = days? ('記録 '+days+'日目'+(streak>1?'・連続'+streak+'日':'')) : '2週間の偵察';
+}
+
+/* ---------- 書き出し ---------- */
+/* 書き出し：共有シート（iPhone/Android）→ 使えなければダウンロード */
+async function dl(name,text,mime){
+  const type=(mime||'text/plain')+';charset=utf-8';
+  const withBom='﻿'+text;                       // Excel用のBOM
+  try{
+    const file=new File([withBom],name,{type});
+    if(navigator.canShare && navigator.canShare({files:[file]})){
+      await navigator.share({files:[file],title:name});
+      toast('共有しました'); return;
+    }
+  }catch(err){
+    if(err && err.name==='AbortError'){ return; }    // ユーザーが閉じただけ
+  }
+  const blob=new Blob([withBom],{type});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=name; a.rel='noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+  toast('書き出しました');
+}
+/* コピー：AIにそのまま貼る用（BOMなし） */
+async function copyToClipboard(text){
+  try{
+    await navigator.clipboard.writeText(text);
+    toast('コピーしました。AIのチャットに貼れます'); return;
+  }catch(e){}
+  const ta=document.createElement('textarea');       // 旧環境むけの保険
+  ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+  document.body.appendChild(ta); ta.focus(); ta.select();
+  let ok=false; try{ ok=document.execCommand('copy'); }catch(e){}
+  ta.remove();
+  toast(ok?'コピーしました。AIのチャットに貼れます':'コピーできませんでした');
+}
+const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+function buildCsv(){
+  const rows=[['日付','時刻','種別','食材','量','油','塩分','糖分','体調(1-5)','便の形状(Bristol)','メモ'].map(q).join(',')];
+  const dates=[...new Set(db.entries.map(e=>e.date).concat(db.stool.map(s=>s.date),Object.keys(db.notes)))].sort();
+  dates.forEach(d=>{
+    if(db.notes[d]) rows.push([d,'','メモ','','','','','','','',db.notes[d]].map(q).join(','));
+    const items=db.entries.filter(e=>e.date===d).map(e=>({k:'食事',v:e}))
+      .concat(db.stool.filter(s=>s.date===d).map(s=>({k:'便',v:s})))
+      .sort((a,b)=>a.v.hour-b.v.hour||a.v.id-b.v.id);
+    items.forEach(it=>{
+      const e=it.v;
+      rows.push(it.k==='便'
+        ? [d,pad(e.hour)+':00','便','',e.amount,'','','','',e.bristol||'',''].map(q).join(',')
+        : [d,pad(e.hour)+':00','食事',e.foods.join('、'),e.amount,e.oil,e.salt,e.sugar,e.cond||'','',''].map(q).join(','));
+    });
+  });
+  return rows.join('\r\n');
+}
+$('expCsv').addEventListener('click',()=>{
+  if(!db.entries.length&&!db.stool.length){toast('データがありません');return;}
+  dl('腸活記録_'+today()+'.csv',buildCsv(),'text/csv');
+});
+$('copyCsv').addEventListener('click',()=>{
+  if(!db.entries.length&&!db.stool.length){toast('データがありません');return;}
+  copyToClipboard(buildCsv());
+});
+$('expJson').addEventListener('click',()=>{
+  if(!db.entries.length&&!db.stool.length){toast('データがありません');return;}
+  dl('腸活記録_'+today()+'.json',JSON.stringify(db,null,2),'application/json');
+});
+$('expChips').addEventListener('click',()=>{
+  const list=foodFreq();
+  if(!list.length){toast('まだ食材がありません');return;}
+  dl('食材レパートリー_'+today()+'.csv','"食材","回数"\r\n'+list.map(([n,c])=>q(n)+','+c).join('\r\n'),'text/csv');
+});
+$('wipe').addEventListener('click',()=>{
+  if(!confirm('すべての記録を消します。取り消せません。よろしいですか？'))return;
+  if(!confirm('本当に消してよいですか？　先にCSVを書き出しましたか？'))return;
+  db={entries:[],stool:[],notes:{}}; save(); localStorage.removeItem(OLD); renderAll(); toast('全て消去しました');
+});
+
+function renderAll(){ renderDates(); renderChips(); $('dnote').value=db.notes[$('dateSel').value]||''; renderLog(); }
+renderAll();
+})();
+</script>
+</body>
+</html>
