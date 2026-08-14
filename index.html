@@ -111,6 +111,13 @@ footer{padding:20px 16px; font-size:11.5px; color:var(--muted); text-align:cente
 }
 #toast.show{transform:translateX(-50%) translateY(0); opacity:1}
 details summary{cursor:pointer; font-size:13px; color:var(--muted); padding:4px 0}
+
+.modal-overlay{position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:100;
+  display:flex; align-items:center; justify-content:center; padding:24px}
+.modal-box{background:var(--surface); border:1px solid var(--border); border-radius:14px;
+  padding:20px; max-width:320px; width:100%; box-shadow:0 12px 34px rgba(0,0,0,.3)}
+.modal-box p{font-size:14.5px; line-height:1.65; white-space:pre-wrap; margin-bottom:18px}
+.modal-box .btnrow{margin-top:0}
 </style>
 </head>
 <body>
@@ -292,6 +299,25 @@ let toastTimer;
 function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show');
   clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),1800);}
 
+/* ---------- 確認ダイアログ（ブラウザ標準confirmだと繰り返し操作時に抑制チェックが出るため自前実装） ---------- */
+function confirmModal(msg){
+  return new Promise(resolve=>{
+    const overlay=document.createElement('div'); overlay.className='modal-overlay';
+    const box=document.createElement('div'); box.className='modal-box';
+    const p=document.createElement('p'); p.textContent=msg;
+    const row=document.createElement('div'); row.className='btnrow';
+    const cancel=document.createElement('button'); cancel.className='btn'; cancel.style.flex='1'; cancel.textContent='キャンセル';
+    const ok=document.createElement('button'); ok.className='btn primary'; ok.style.flex='1'; ok.textContent='OK';
+    row.appendChild(cancel); row.appendChild(ok);
+    box.appendChild(p); box.appendChild(row); overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    const close=v=>{overlay.remove(); resolve(v);};
+    cancel.addEventListener('click',()=>close(false));
+    ok.addEventListener('click',()=>close(true));
+    overlay.addEventListener('click',e=>{ if(e.target===overlay) close(false); });
+  });
+}
+
 /* ---------- 時間セレクト ---------- */
 [['hour'],['sHour']].forEach(([id])=>{
   const s=$(id);
@@ -340,7 +366,7 @@ function renderChips(){
 function resetMeal(){
   $('foods').value='';
   segSet('amount','満足'); segSet('oil','普通'); segSet('salt','普通'); segSet('sugar','普通'); segSet('cond','');
-  $('hour').value=new Date().getHours();
+  // 時間はリセットしない：後から複数件まとめて記録する時に毎回設定し直す手間を避ける
 }
 function saveMeal(){
   const foods=$('foods').value.split(/[,、]/).map(s=>s.trim()).filter(Boolean);
@@ -380,7 +406,7 @@ $('saveStool').addEventListener('click',()=>{
   db.stool.push({id:Date.now(), date:$('dateSel').value||today(), hour:Number($('sHour').value),
     amount:segGet('samount'), bristol:$('bristol').value});
   save();
-  segSet('samount','普通'); $('bristol').value='4'; $('sHour').value=new Date().getHours();
+  segSet('samount','普通'); $('bristol').value='4';
   renderAll(); toast('便を記録しました');
 });
 
@@ -441,8 +467,8 @@ function renderLog(){
     }
     b.appendChild(f); b.appendChild(m);
     const del=document.createElement('button'); del.className='del'; del.textContent='×'; del.title='削除';
-    del.addEventListener('click',()=>{
-      if(!confirm('この記録を削除しますか？'))return;
+    del.addEventListener('click',async()=>{
+      if(!await confirmModal('この記録を削除しますか？'))return;
       if(isStool) db.stool=db.stool.filter(x=>x.id!==e.id); else db.entries=db.entries.filter(x=>x.id!==e.id);
       save(); renderAll(); toast('削除しました');
     });
@@ -529,9 +555,9 @@ $('expChips').addEventListener('click',()=>{
   if(!list.length){toast('まだ食材がありません');return;}
   dl('食材レパートリー_'+today()+'.csv','"食材","回数"\r\n'+list.map(([n,c])=>q(n)+','+c).join('\r\n'),'text/csv');
 });
-$('wipe').addEventListener('click',()=>{
-  if(!confirm('すべての記録を消します。取り消せません。よろしいですか？'))return;
-  if(!confirm('本当に消してよいですか？　先にCSVを書き出しましたか？'))return;
+$('wipe').addEventListener('click',async()=>{
+  if(!await confirmModal('すべての記録を消します。取り消せません。よろしいですか？'))return;
+  if(!await confirmModal('本当に消してよいですか？　先にCSVを書き出しましたか？'))return;
   db={entries:[],stool:[],notes:{}}; save(); localStorage.removeItem(OLD); renderAll(); toast('全て消去しました');
 });
 
