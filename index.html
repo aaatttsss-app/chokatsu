@@ -89,11 +89,16 @@ select{appearance:none; padding-right:30px;
   padding:11px 12px; margin-bottom:7px; display:flex; gap:11px; align-items:flex-start;
 }
 .entry.stool{background:var(--accent-bg); border-color:transparent}
+.entry.active-meal{border-color:var(--accent); box-shadow:0 0 0 1.5px var(--accent)}
 .entry .t{font-size:13px; font-weight:700; color:var(--accent); min-width:42px; padding-top:1px}
 .entry .b{flex:1; min-width:0}
-.entry .f{font-size:14.5px; word-break:break-word}
+.entry .f{font-size:14.5px; word-break:break-word; display:flex; flex-wrap:wrap; gap:5px; align-items:center}
 .entry .m{font-size:11.5px; color:var(--muted); margin-top:3px}
 .entry .del{background:none;border:none;color:var(--muted);font-size:17px;cursor:pointer;padding:0 2px;line-height:1;font-family:inherit}
+.food-chip{display:inline-flex; align-items:center; gap:1px; background:var(--surface2); border:1px solid var(--border);
+  border-radius:12px; padding:2px 2px 2px 9px; font-size:13.5px}
+.food-chip button{background:none; border:none; color:var(--muted); font-size:14px; cursor:pointer; padding:3px 7px; line-height:1; font-family:inherit}
+.meal-status{font-size:12px; color:var(--muted); margin:-6px 0 12px 2px; line-height:1.6}
 .memo-badge{background:var(--surface2); border:1px dashed var(--border); border-radius:8px; padding:8px 11px; font-size:12.5px; color:var(--muted); margin-bottom:7px}
 .empty{color:var(--muted); font-size:13.5px; text-align:center; padding:24px 0}
 
@@ -130,19 +135,11 @@ details summary{cursor:pointer; font-size:13px; color:var(--muted); padding:4px 
 
 <!-- ═══════ 食事 ═══════ -->
 <section>
-  <h2>🍽 食事を記録</h2>
+  <h2>🍽 食事を記録<span class="opt-tag">1食＝時間/量/体調を決めてから食材を追加</span></h2>
 
   <div class="row">
     <label for="hour">時間</label>
     <select id="hour" style="flex:1"></select>
-  </div>
-
-  <div class="row" style="align-items:flex-start">
-    <label for="foods" style="padding-top:11px">食材</label>
-    <div style="flex:1; min-width:0">
-      <input type="text" id="foods" placeholder="例）ごはん, 味噌汁, 納豆　※料理名が無ければ材料を並べる" autocomplete="off" enterkeyhint="done">
-      <div class="chips" id="chips"></div>
-    </div>
   </div>
 
   <div class="row"><label>量</label><div class="seg" data-field="amount">
@@ -177,12 +174,24 @@ details summary{cursor:pointer; font-size:13px; color:var(--muted); padding:4px 
   </div></div>
   <div class="sub">1＝悪い ／ 5＝良い　※押し直しで解除。朝・昼・夜のご飯のついでに</div>
 
+  <div class="row" style="align-items:flex-start; margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+    <label for="foods" style="padding-top:11px">食材</label>
+    <div style="flex:1; min-width:0">
+      <input type="text" id="foods" placeholder="例）ごはん　※1品ずつ追加。まとめるなら「,」区切り" autocomplete="off" enterkeyhint="done">
+      <div class="chips" id="chips"></div>
+    </div>
+  </div>
+  <div class="meal-status" id="mealStatus">この食事にはまだ何も追加されていません</div>
+
   <div class="btnrow" style="margin-top:4px">
-    <button class="btn primary" id="save">記録する</button>
+    <button class="btn primary" id="addFoodBtn">＋ 食材を追加</button>
   </div>
   <div class="btnrow">
     <button class="btn ghost" id="copyLast">↩ 前回をコピー</button>
     <button class="btn ghost" id="copyMorning">↩ 前回の朝食</button>
+  </div>
+  <div class="btnrow">
+    <button class="btn ghost" id="nextMeal">🍽 次の食事へ（この食事を終える）</button>
   </div>
 </section>
 
@@ -276,6 +285,7 @@ const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const today=()=>ymd(new Date());
 
 let db={entries:[],stool:[],notes:{}};
+let activeMealId=null;   // 「今編集中の食事」のentry id（未開始ならnull）
 try{
   const r=localStorage.getItem(KEY);
   if(r){ db=Object.assign(db,JSON.parse(r)); }
@@ -327,12 +337,14 @@ function confirmModal(msg){
 
 /* ---------- セグメント ---------- */
 const OPTIONAL=['cond'];   // 押し直しで解除できる項目
+const MEAL_FIELDS=['amount','oil','salt','sugar','cond'];   // 食事の属性（変更したら編集中の食事に同期する）
 document.querySelectorAll('.seg').forEach(seg=>{
   seg.addEventListener('click',e=>{
     const b=e.target.closest('button'); if(!b)return;
     const on=b.getAttribute('aria-pressed')==='true';
     seg.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed','false'));
     if(!(on && OPTIONAL.includes(seg.dataset.field))) b.setAttribute('aria-pressed','true');
+    if(MEAL_FIELDS.includes(seg.dataset.field)) syncActiveMealAttrs();
   });
 });
 const segGet=f=>{const b=document.querySelector('.seg[data-field="'+f+'"] button[aria-pressed="true"]');return b?b.dataset.v:'';};
@@ -362,41 +374,82 @@ function renderChips(){
   });
 }
 
-/* ---------- 保存：食事 ---------- */
+/* ---------- 保存：食事（1食＝属性を先に決め、食材は何度でも追加） ---------- */
+function activeMeal(){
+  if(!activeMealId) return null;
+  const m=db.entries.find(e=>e.id===activeMealId);
+  if(!m || m.date!==($('dateSel').value||today())) return null;   // 日付を変えたら別扱い
+  return m;
+}
+function ensureActiveMeal(){
+  let m=activeMeal();
+  if(!m){
+    m={ id:Date.now(), date:$('dateSel').value||today(), hour:Number($('hour').value), foods:[],
+      amount:segGet('amount'), oil:segGet('oil'), salt:segGet('salt'), sugar:segGet('sugar'), cond:segGet('cond') };
+    db.entries.push(m);
+    activeMealId=m.id;
+  }
+  return m;
+}
+function syncActiveMealAttrs(){
+  const m=activeMeal();
+  if(!m) return;
+  m.amount=segGet('amount'); m.oil=segGet('oil'); m.salt=segGet('salt'); m.sugar=segGet('sugar'); m.cond=segGet('cond');
+  save(); renderLog();
+}
 function resetMeal(){
   $('foods').value='';
   segSet('amount','満足'); segSet('oil','普通'); segSet('salt','普通'); segSet('sugar','普通'); segSet('cond','');
   // 時間はリセットしない：後から複数件まとめて記録する時に毎回設定し直す手間を避ける
 }
-function saveMeal(){
+function addFood(){
   const foods=$('foods').value.split(/[,、]/).map(s=>s.trim()).filter(Boolean);
-  if(!foods.length){ toast('食材を入れてください（料理名が無ければ材料を並べる）'); $('foods').focus(); return; }
-  db.entries.push({
-    id:Date.now(), date:$('dateSel').value||today(), hour:Number($('hour').value), foods,
-    amount:segGet('amount'), oil:segGet('oil'), salt:segGet('salt'), sugar:segGet('sugar'), cond:segGet('cond')
-  });
-  save(); resetMeal(); renderAll(); toast('記録しました');
+  if(!foods.length){ toast('食材を入れてください'); $('foods').focus(); return; }
+  const m=ensureActiveMeal();
+  m.foods.push(...foods);
+  $('foods').value='';
+  save(); renderAll(); toast('追加しました（この食事：計'+m.foods.length+'品）');
 }
-$('save').addEventListener('click',saveMeal);
+$('addFoodBtn').addEventListener('click',addFood);
 let composingFoods=false;                        // IME変換中はEnterを無視する
 $('foods').addEventListener('compositionstart',()=>{composingFoods=true;});
 $('foods').addEventListener('compositionend',()=>{composingFoods=false;});
 $('foods').addEventListener('keydown',e=>{
   if(e.key!=='Enter') return;
   if(composingFoods || e.isComposing || e.keyCode===229) return;   // 変換確定のEnterはスルー
-  e.preventDefault(); saveMeal();
+  e.preventDefault(); addFood();
 });
+$('hour').addEventListener('change',()=>{
+  const m=activeMeal();
+  if(m){ m.hour=Number($('hour').value); save(); renderLog(); }
+});
+$('nextMeal').addEventListener('click',()=>{
+  activeMealId=null;
+  resetMeal();
+  renderAll();
+  toast('次の食事の準備をしました');
+});
+function renderMealStatus(){
+  const el=$('mealStatus'); if(!el) return;
+  const m=activeMeal();
+  el.textContent=(!m||!m.foods.length) ? 'この食事にはまだ何も追加されていません'
+    : 'この食事：'+m.foods.join('、')+'（計'+m.foods.length+'品）';
+}
 
 /* ---------- 前回コピー ---------- */
 function lastEntry(pred){
-  for(let i=db.entries.length-1;i>=0;i--){ const e=db.entries[i]; if(e.foods.length&&(!pred||pred(e))) return e; }
+  for(let i=db.entries.length-1;i>=0;i--){ const e=db.entries[i];
+    if(e.id===activeMealId) continue;   // 今編集中の食事自身は対象外
+    if(e.foods.length&&(!pred||pred(e))) return e;
+  }
   return null;
 }
 function applyEntry(e){
   if(!e){ toast('コピーできる記録がありません'); return; }
   $('foods').value=e.foods.join(', ');
   segSet('amount',e.amount); segSet('oil',e.oil); segSet('salt',e.salt); segSet('sugar',e.sugar);
-  toast('コピーしました。違うところだけ直してください');
+  syncActiveMealAttrs();
+  toast('コピーしました。違うところだけ直してください（食材は「＋ 食材を追加」を押すまで確定しません）');
 }
 $('copyLast').addEventListener('click',()=>applyEntry(lastEntry()));
 $('copyMorning').addEventListener('click',()=>applyEntry(lastEntry(e=>e.hour>=4&&e.hour<=10)));
@@ -433,7 +486,7 @@ function renderDates(){
   });
   sel.value=(keep&&dates.includes(keep))?keep:today();
 }
-$('dateSel').addEventListener('change',()=>{ $('dnote').value=db.notes[$('dateSel').value]||''; renderLog(); });
+$('dateSel').addEventListener('change',()=>{ $('dnote').value=db.notes[$('dateSel').value]||''; renderLog(); renderMealStatus(); });
 
 /* ---------- 一覧 ---------- */
 function renderLog(){
@@ -451,7 +504,8 @@ function renderLog(){
   }
   items.forEach(it=>{
     const e=it.v, isStool=it.k==='stool';
-    const div=document.createElement('div'); div.className='entry'+(isStool?' stool':'');
+    const div=document.createElement('div');
+    div.className='entry'+(isStool?' stool':'')+(!isStool&&e.id===activeMealId?' active-meal':'');
     const t=document.createElement('div'); t.className='t'; t.textContent=pad(e.hour)+':00';
     const b=document.createElement('div'); b.className='b';
     const f=document.createElement('div'); f.className='f';
@@ -460,16 +514,37 @@ function renderLog(){
       f.textContent='🚽 便　量'+e.amount;
       m.textContent=e.bristol?('形状 Bristol '+e.bristol):'形状の記録なし';
     }else{
-      f.textContent=e.foods.join('、');
+      if(!e.foods.length){
+        f.textContent='（食材なし）';
+      }else{
+        e.foods.forEach((food,idx)=>{
+          const chip=document.createElement('span'); chip.className='food-chip';
+          const label=document.createElement('span'); label.textContent=food;
+          const x=document.createElement('button'); x.type='button'; x.textContent='×'; x.title='この食材だけ削除';
+          x.addEventListener('click',async(ev)=>{
+            ev.stopPropagation();
+            if(!await confirmModal('「'+food+'」を削除しますか？'))return;
+            e.foods.splice(idx,1);
+            if(!e.foods.length){
+              db.entries=db.entries.filter(x2=>x2.id!==e.id);
+              if(activeMealId===e.id) activeMealId=null;
+            }
+            save(); renderAll(); toast('削除しました');
+          });
+          chip.appendChild(label); chip.appendChild(x);
+          f.appendChild(chip);
+        });
+      }
       const p=['量'+e.amount,'油'+e.oil,'塩'+e.salt,'糖'+e.sugar];
       if(e.cond) p.push('体調'+e.cond+'/5');
       m.textContent=p.join('　');
     }
     b.appendChild(f); b.appendChild(m);
-    const del=document.createElement('button'); del.className='del'; del.textContent='×'; del.title='削除';
+    const del=document.createElement('button'); del.className='del'; del.textContent='×'; del.title='この食事をまるごと削除';
     del.addEventListener('click',async()=>{
       if(!await confirmModal('この記録を削除しますか？'))return;
       if(isStool) db.stool=db.stool.filter(x=>x.id!==e.id); else db.entries=db.entries.filter(x=>x.id!==e.id);
+      if(!isStool && activeMealId===e.id) activeMealId=null;
       save(); renderAll(); toast('削除しました');
     });
     div.appendChild(t); div.appendChild(b); div.appendChild(del);
@@ -558,10 +633,10 @@ $('expChips').addEventListener('click',()=>{
 $('wipe').addEventListener('click',async()=>{
   if(!await confirmModal('すべての記録を消します。取り消せません。よろしいですか？'))return;
   if(!await confirmModal('本当に消してよいですか？　先にCSVを書き出しましたか？'))return;
-  db={entries:[],stool:[],notes:{}}; save(); localStorage.removeItem(OLD); renderAll(); toast('全て消去しました');
+  db={entries:[],stool:[],notes:{}}; activeMealId=null; save(); localStorage.removeItem(OLD); renderAll(); toast('全て消去しました');
 });
 
-function renderAll(){ renderDates(); renderChips(); $('dnote').value=db.notes[$('dateSel').value]||''; renderLog(); }
+function renderAll(){ renderDates(); renderChips(); $('dnote').value=db.notes[$('dateSel').value]||''; renderLog(); renderMealStatus(); }
 renderAll();
 })();
 </script>
