@@ -352,7 +352,14 @@ function saveMeal(){
   save(); resetMeal(); renderAll(); toast('記録しました');
 }
 $('save').addEventListener('click',saveMeal);
-$('foods').addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault(); saveMeal();} });
+let composingFoods=false;                        // IME変換中はEnterを無視する
+$('foods').addEventListener('compositionstart',()=>{composingFoods=true;});
+$('foods').addEventListener('compositionend',()=>{composingFoods=false;});
+$('foods').addEventListener('keydown',e=>{
+  if(e.key!=='Enter') return;
+  if(composingFoods || e.isComposing || e.keyCode===229) return;   // 変換確定のEnterはスルー
+  e.preventDefault(); saveMeal();
+});
 
 /* ---------- 前回コピー ---------- */
 function lastEntry(pred){
