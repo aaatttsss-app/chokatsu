@@ -160,7 +160,7 @@ details summary{cursor:pointer; font-size:13px; color:var(--muted); padding:4px 
     <button type="button" data-v="多">多</button>
   </div></div>
 
-  <div class="row"><label>糖分</label><div class="seg" data-field="sugar">
+  <div class="row"><label>甘いもの</label><div class="seg" data-field="sugar">
     <button type="button" data-v="少">少</button>
     <button type="button" data-v="普通" aria-pressed="true">普通</button>
     <button type="button" data-v="多">多</button>
@@ -168,16 +168,17 @@ details summary{cursor:pointer; font-size:13px; color:var(--muted); padding:4px 
 
   <div class="row" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
     <label>体調</label><div class="seg" data-field="cond">
-    <button type="button" data-v="1">1</button><button type="button" data-v="2">2</button>
-    <button type="button" data-v="3">3</button><button type="button" data-v="4">4</button>
-    <button type="button" data-v="5">5</button>
+    <button type="button" data-v="良い">良い</button>
+    <button type="button" data-v="同じ">同じ</button>
+    <button type="button" data-v="悪い">悪い</button>
   </div></div>
-  <div class="sub">1＝悪い ／ 5＝良い　※押し直しで解除。朝・昼・夜のご飯のついでに</div>
+  <div class="sub"><b>昨日と比べて</b>（絶対値だと動かないので差分で取る）　※押し直しで解除。朝・昼・夜のご飯のついでに</div>
 
   <div class="row" style="align-items:flex-start; margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
     <label for="foods" style="padding-top:11px">食材</label>
     <div style="flex:1; min-width:0">
       <input type="text" id="foods" placeholder="例）ごはん　※1品ずつ追加。まとめるなら「,」区切り" autocomplete="off" enterkeyhint="done">
+      <div class="sub" style="margin:6px 0 0 0"><b>主要な3つまで。</b>少し入っているものは書かない（<b>悩んだら書かない</b>）</div>
       <div class="chips" id="chips"></div>
     </div>
   </div>
@@ -535,8 +536,8 @@ function renderLog(){
           f.appendChild(chip);
         });
       }
-      const p=['量'+e.amount,'油'+e.oil,'塩'+e.salt,'糖'+e.sugar];
-      if(e.cond) p.push('体調'+e.cond+'/5');
+      const p=['量'+e.amount,'油'+e.oil,'塩'+e.salt,'甘'+e.sugar];
+      if(e.cond) p.push('体調'+(/^[1-5]$/.test(e.cond)?e.cond+'/5':e.cond));   // 旧データ（1〜5）も表示できるように
       m.textContent=p.join('　');
     }
     b.appendChild(f); b.appendChild(m);
@@ -597,7 +598,7 @@ async function copyToClipboard(text){
 }
 const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
 function buildCsv(){
-  const rows=[['日付','時刻','種別','食材','量','油','塩分','糖分','体調(1-5)','便の形状(Bristol)','メモ'].map(q).join(',')];
+  const rows=[['日付','時刻','種別','食材','量','油','塩分','甘いもの','体調(前日比)','便の形状(Bristol)','メモ'].map(q).join(',')];
   const dates=[...new Set(db.entries.map(e=>e.date).concat(db.stool.map(s=>s.date),Object.keys(db.notes)))].sort();
   dates.forEach(d=>{
     if(db.notes[d]) rows.push([d,'','メモ','','','','','','','',db.notes[d]].map(q).join(','));
